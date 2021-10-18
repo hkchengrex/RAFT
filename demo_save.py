@@ -41,7 +41,7 @@ def viz(img, flo):
     plt.show()
 
 
-def demo(args):
+def demo(args, reverse=False):
     model = torch.nn.DataParallel(RAFT(args))
     model.load_state_dict(torch.load(args.model))
 
@@ -54,6 +54,9 @@ def demo(args):
                  glob.glob(os.path.join(args.path, '*.jpg'))
         
         images = sorted(images)
+        if reverse:
+            images.reverse()
+
         for imfile1, imfile2 in zip(images[:-1], images[1:]):
             image1 = load_image(imfile1)
             image2 = load_image(imfile2)
@@ -62,16 +65,40 @@ def demo(args):
             image1, image2 = padder.pad(image1, image2)
 
             flow_low, flow_up = model(image1, image2, iters=20, test_mode=True)
-            viz(image1, flow_up)
+            # viz(image1, flow_up)
+            flo = flow_up[0].permute(1,2,0).cpu().numpy()
+            np.save(os.path.join(args.out_path, os.path.basename(imfile1).replace('.jpg', '.npy')), flo)
 
+
+to_do = ['bear', 'parkour', 'breakdance-flare', 'motocross-bumps', 'scooter-gray', 'train', 'libby', 'horsejump-high', 'soapbox', 'dance-twirl']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', help="restore checkpoint")
     parser.add_argument('--path', help="dataset for evaluation")
+    parser.add_argument('--out_path')
     parser.add_argument('--small', action='store_true', help='use small model')
     parser.add_argument('--mixed_precision', action='store_true', help='use mixed precision')
     parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
     args = parser.parse_args()
 
-    demo(args)
+    base_path = args.path
+    image_folders = os.listdir(os.path.join(base_path, 'JPEGImages', '480p'))
+    for folder in image_folders:
+
+        if folder not in to_do:
+            continue
+
+        print(folder)
+        args.path = os.path.join(base_path, 'JPEGImages', '480p', folder)
+        args.out_path = os.path.join(base_path, 'FwFlow', folder)
+        os.makedirs(args.out_path, exist_ok=True)
+
+        demo(args, reverse=False)
+
+        args.path = os.path.join(base_path, 'JPEGImages', '480p', folder)
+        args.out_path = os.path.join(base_path, 'BwFlow', folder)
+        os.makedirs(args.out_path, exist_ok=True)
+
+        demo(args, reverse=True)
+
