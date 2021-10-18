@@ -67,7 +67,11 @@ def demo(args, reverse=False):
             flow_low, flow_up = model(image1, image2, iters=20, test_mode=True)
             # viz(image1, flow_up)
             flo = flow_up[0].permute(1,2,0).cpu().numpy()
-            np.save(os.path.join(args.out_path, os.path.basename(imfile1).replace('.jpg', '.npy')), flo)
+
+            if reverse:
+                np.save(os.path.join(args.out_path, os.path.basename(imfile2).replace('.jpg', '.npy')), flo)
+            else:
+                np.save(os.path.join(args.out_path, os.path.basename(imfile1).replace('.jpg', '.npy')), flo)
 
 
 to_do = ['bear', 'parkour', 'breakdance-flare', 'motocross-bumps', 'scooter-gray', 'train', 'libby', 'horsejump-high', 'soapbox', 'dance-twirl']
