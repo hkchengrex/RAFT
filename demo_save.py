@@ -11,7 +11,7 @@ from PIL import Image
 
 from raft import RAFT
 from utils import flow_viz
-from utils.utils import InputPadder
+from utils.utils import InputPadder, forward_interpolate
 
 import matplotlib.pyplot as plt
 
@@ -49,6 +49,8 @@ def demo(args, reverse=False):
     model.to(DEVICE)
     model.eval()
 
+    flow_prev = None
+
     with torch.no_grad():
         images = glob.glob(os.path.join(args.path, '*.png')) + \
                  glob.glob(os.path.join(args.path, '*.jpg'))
@@ -64,9 +66,12 @@ def demo(args, reverse=False):
             padder = InputPadder(image1.shape)
             image1, image2 = padder.pad(image1, image2)
 
-            flow_low, flow_up = model(image1, image2, iters=20, test_mode=True)
+            flow_low, flow_up = model(image1, image2, iters=20, flow_init=flow_prev, test_mode=True)
             # viz(image1, flow_up)
+            flow_up = padder.unpad(flow_up)
             flo = flow_up[0].permute(1,2,0).cpu().numpy()
+
+            flow_prev = forward_interpolate(flow_low[0])[None].cuda()
 
             if reverse:
                 np.save(os.path.join(args.out_path, os.path.basename(imfile2).replace('.jpg', '.npy')), flo)
